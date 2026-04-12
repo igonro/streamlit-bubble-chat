@@ -6,20 +6,54 @@ from collections.abc import Callable
 from typing import Any, Literal
 
 import streamlit as st
+from streamlit.errors import StreamlitAPIException
 
-_component = st.components.v2.component(
-    "streamlit-bubble-chat.bubble_chat",
-    js="index-*.js",
-    css="styles-*.css",
-    html=" ",
-    isolate_styles=False,
-)
+_COMPONENT_NAME = "streamlit-bubble-chat.bubble_chat"
+_COMPONENT_JS_GLOB = "index-*.js"
+_COMPONENT_CSS_GLOB = "styles-*.css"
+
+_component: Callable[..., Any] | None = None
 
 # Default assistant config entry for unnamed assistants
 _DEFAULT_ASSISTANT: dict[str, str] = {
     "icon": ":material/robot_2:",
     "avatar_bg": "",
 }
+
+
+def _create_component() -> Callable[..., Any]:
+    return st.components.v2.component(
+        _COMPONENT_NAME,
+        js=_COMPONENT_JS_GLOB,
+        css=_COMPONENT_CSS_GLOB,
+        html=" ",
+        isolate_styles=False,
+    )
+
+
+def _get_component() -> Callable[..., Any]:
+    global _component
+
+    if _component is not None:
+        return _component
+
+    try:
+        _component = _create_component()
+    except StreamlitAPIException as exc:
+        if "must be declared in pyproject.toml with asset_dir" not in str(exc):
+            raise
+
+        # When registration happens before runtime bootstrap, explicitly scan
+        # installed manifests and retry once.
+        from streamlit.components.v2.get_bidi_component_manager import (
+            get_bidi_component_manager,
+        )
+
+        manager = get_bidi_component_manager()
+        manager.discover_and_register_components(start_file_watching=False)
+        _component = _create_component()
+
+    return _component
 
 
 def bubble_chat(
@@ -117,7 +151,9 @@ def bubble_chat(
         "is_maximized": is_maximized,
     }
 
-    result = _component(
+    component = _get_component()
+
+    result = component(
         data=data,
         default={"is_open": False, "is_maximized": False},
         key=key,

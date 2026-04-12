@@ -1,6 +1,6 @@
 [project]
 name = "streamlit-bubble-chat"
-version = "0.1.0"
+version = "0.1.1"
 description = "A floating chat bubble component for Streamlit apps"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -17,10 +17,9 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Framework :: Streamlit",
     "Topic :: Software Development :: User Interfaces",
 ]
-dependencies = ["streamlit>=1.51"]
+dependencies = ["streamlit>=1.53"]
 
 [project.urls]
 Homepage = "https://github.com/igonro/streamlit-bubble-chat"
