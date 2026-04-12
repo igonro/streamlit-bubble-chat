@@ -1,0 +1,42 @@
+# Inverse ignore strategy:
+# 1. Ignore every top-level path by default.
+# 2. Explicitly allow the files and folders that belong in the repository.
+# 3. Add new top-level paths here on purpose so local scratch files never leak into commits.
+
+/*
+!/.gitignore
+
+# Project metadata and documentation.
+!/README.md
+!/CHANGELOG.md
+!/CONTRIBUTING.md
+!/LICENSE
+!/Makefile
+!/pyproject.toml
+!/uv.lock
+!/.pre-commit-config.yaml
+!/.editorconfig
+
+# Source tree.
+!/.github/
+!/docs/
+!/examples/
+!/streamlit_bubble_chat/
+!/tests/
+
+# Generated Python artifacts.
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+.coverage
+.pytest_cache/
+.ruff_cache/
+.venv/
+build/
+dist/
+htmlcov/
+
+# Generated frontend artifacts.
+streamlit_bubble_chat/frontend/build/
+streamlit_bubble_chat/frontend/node_modules/

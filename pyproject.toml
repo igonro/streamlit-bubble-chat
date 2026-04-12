@@ -1,0 +1,82 @@
+[project]
+name = "streamlit-bubble-chat"
+version = "0.1.0"
+description = "A floating chat bubble component for Streamlit apps"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Iago González" }]
+keywords = ["streamlit", "chat", "widget", "component", "bubble", "ui"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Framework :: Streamlit",
+    "Topic :: Software Development :: User Interfaces",
+]
+dependencies = ["streamlit>=1.51"]
+
+[project.urls]
+Homepage = "https://github.com/igonro/streamlit-bubble-chat"
+Repository = "https://github.com/igonro/streamlit-bubble-chat"
+Issues = "https://github.com/igonro/streamlit-bubble-chat/issues"
+Changelog = "https://github.com/igonro/streamlit-bubble-chat/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    "commitizen>=4.13.0,<5",
+    "prek>=0.3.8,<0.4",
+    "ruff>=0.11.0,<1",
+]
+test = [
+    "playwright>=1.54.0,<2",
+    "pytest>=8.3.0,<9",
+    "pytest-cov>=6.1.0,<7",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.6,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv]
+package = true
+default-groups = ["dev", "test"]
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+src = ["streamlit_bubble_chat", "examples", "tests"]
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+markers = [
+    "e2e: end-to-end tests that launch Streamlit and exercise the browser UI",
+]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["streamlit_bubble_chat"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_provider = "uv"
+update_changelog_on_bump = true
+version_files = ["streamlit_bubble_chat/pyproject.toml:version"]
+
+[[tool.streamlit.component.components]]
+name = "bubble_chat"
+asset_dir = "streamlit_bubble_chat/frontend/build"
