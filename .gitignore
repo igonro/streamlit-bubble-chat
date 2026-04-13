@@ -40,3 +40,6 @@ htmlcov/
 # Generated frontend artifacts.
 streamlit_bubble_chat/frontend/build/
 streamlit_bubble_chat/frontend/node_modules/
+
+# Secrets
+**/.env
