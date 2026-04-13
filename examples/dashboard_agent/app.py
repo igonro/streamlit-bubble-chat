@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 
 import pandas as pd
@@ -283,6 +284,12 @@ def get_agent_executor():
     )
 
 
+@st.cache_resource
+def get_executor() -> ThreadPoolExecutor:
+    """Shared thread-pool for non-blocking LLM calls."""
+    return ThreadPoolExecutor(max_workers=4)
+
+
 # ---------------------------------------------------------------------------
 # Session state initialisation
 # ---------------------------------------------------------------------------
@@ -310,6 +317,10 @@ def init_session_state() -> None:
         st.session_state.thread_id = str(uuid.uuid4())
     if "unread" not in st.session_state:
         st.session_state.unread = 1
+    if "processing" not in st.session_state:
+        st.session_state.processing = False
+    if "agent_future" not in st.session_state:
+        st.session_state.agent_future = None
 
 
 # ---------------------------------------------------------------------------
@@ -409,52 +420,86 @@ def render_charts(df: pd.DataFrame) -> None:
 
 
 def handle_message() -> None:
+    if st.session_state.get("processing"):
+        return  # Ignore new messages while a response is pending.
     text = st.session_state["pizza_chat"].new_message
     if not text or not text.strip():
         return
 
     st.session_state.messages.append({"role": "user", "content": text})
+    st.session_state.processing = True
 
-    # Snapshot current filters so tools can read them from a thread.
+    # Snapshot current filters so the agent thread can read them safely.
     current_filters = _get_current_filters()
     current_filters["months"] = st.session_state.filter_months
     current_filters["categories"] = st.session_state.filter_categories
     current_filters["sizes"] = st.session_state.filter_sizes
     _get_filter_changes().clear()
 
-    agent = get_agent_executor()
-    config = {"configurable": {"thread_id": st.session_state.thread_id}}
+    text_to_send = text
+    thread_id = st.session_state.thread_id
 
-    try:
-        result = agent.invoke(
-            {"messages": [{"role": "user", "content": text}]},
-            config=config,
-        )
-        response = result["messages"][-1].content
-    except Exception as exc:  # noqa: BLE001
-        response = f"Sorry, I encountered an error: {exc}"
+    def _run_agent() -> tuple[str, str | None]:
+        agent = get_agent_executor()
+        config = {"configurable": {"thread_id": thread_id}}
+        try:
+            result = agent.invoke(
+                {"messages": [{"role": "user", "content": text_to_send}]},
+                config=config,
+            )
+            return result["messages"][-1].content, None
+        except Exception as exc:  # noqa: BLE001
+            return "", str(exc)
 
-    # Apply any filter changes the tool requested (now in the Streamlit thread).
-    needs_rerun = False
+    st.session_state.agent_future = get_executor().submit(_run_agent)
+
+
+@st.fragment(run_every=0.4)
+def _await_agent_response() -> None:
+    """Polls for the pending LLM response at 0.4-second intervals.
+
+    run_every drives the fragment reruns automatically, so no time.sleep or
+    explicit scope="fragment" rerun is needed.
+    """
+    if not st.session_state.get("processing"):
+        return
+
+    future: Future[tuple[str, str | None]] | None = st.session_state.get("agent_future")
+    if future is None:
+        st.session_state.processing = False
+        return
+
+    if not future.done():
+        return  # Will be called again automatically by run_every.
+
+    # Response is ready.
+    response, error = future.result()
+    st.session_state.agent_future = None
+    if error:
+        response = f"Sorry, I encountered an error: {error}"
+
+    # Apply any filter changes requested by the agent tools.
     filter_changes = _get_filter_changes()
     if filter_changes:
         if "months" in filter_changes:
             st.session_state.filter_months = filter_changes["months"]
+            st.session_state["_month_slider"] = filter_changes["months"]
         if "categories" in filter_changes:
             st.session_state.filter_categories = filter_changes["categories"]
+            st.session_state["_category_multi"] = filter_changes["categories"]
         if "sizes" in filter_changes:
             st.session_state.filter_sizes = filter_changes["sizes"]
-        needs_rerun = True
+            st.session_state["_size_multi"] = filter_changes["sizes"]
         filter_changes.clear()
 
     st.session_state.messages.append({"role": "assistant", "content": response})
-    st.session_state.unread = 0
 
-    if needs_rerun:
-        st.session_state["_month_slider"] = st.session_state.filter_months
-        st.session_state["_category_multi"] = st.session_state.filter_categories
-        st.session_state["_size_multi"] = st.session_state.filter_sizes
-        st.rerun()
+    # Show unread badge only when the chat window is closed.
+    chat_state = st.session_state.get("pizza_chat") or {}
+    st.session_state.unread = 0 if chat_state.get("is_open") else 1
+
+    st.session_state.processing = False
+    st.rerun()  # Full rerun to update the whole dashboard.
 
 
 # ---------------------------------------------------------------------------
@@ -471,6 +516,7 @@ def main() -> None:
 
     init_session_state()
 
+    processing = st.session_state.processing
     master_df = load_data()
 
     # ── Sidebar ────────────────────────────────────────────────────────────
@@ -488,6 +534,7 @@ def main() -> None:
             value=st.session_state.filter_months,
             format_func=lambda m: MONTH_NAMES[m - 1],
             key="_month_slider",
+            disabled=processing,
         )
         st.session_state.filter_months = month_range
 
@@ -496,6 +543,7 @@ def main() -> None:
             "Category",
             options=ALL_CATEGORIES,
             key="_category_multi",
+            disabled=processing,
         )
         st.session_state.filter_categories = selected_categories
 
@@ -504,10 +552,11 @@ def main() -> None:
             "Size",
             options=ALL_SIZES,
             key="_size_multi",
+            disabled=processing,
         )
         st.session_state.filter_sizes = selected_sizes
 
-        if st.button("Reset Filters", use_container_width=True):
+        if st.button("Reset Filters", use_container_width=True, disabled=processing):
             st.session_state.filter_months = (1, 12)
             st.session_state.filter_categories = []
             st.session_state.filter_sizes = []
@@ -550,6 +599,9 @@ def main() -> None:
     # ── Charts ─────────────────────────────────────────────────────────────
     render_charts(filtered_df)
 
+    # ── Poll for async agent response (no-op when idle) ────────────────────
+    _await_agent_response()
+
     # ── Bubble chat ────────────────────────────────────────────────────────
     bubble_chat(
         messages=st.session_state.messages,
@@ -560,7 +612,7 @@ def main() -> None:
         on_message=handle_message,
     )
 
-    # Reset unread when user opens the chat
+    # Reset unread when user opens the chat.
     chat_state = st.session_state.get("pizza_chat", {})
     if chat_state.get("is_open", False) and st.session_state.unread > 0:
         st.session_state.unread = 0
