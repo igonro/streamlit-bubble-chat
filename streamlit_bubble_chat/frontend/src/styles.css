@@ -27,7 +27,7 @@
 /* ── Root container ── */
 .stbc-root {
     position: fixed;
-    z-index: 999990;
+    z-index: 999992;
     bottom: 24px;
     right: 24px;
     font-family: var(
