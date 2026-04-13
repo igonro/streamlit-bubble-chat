@@ -296,8 +296,13 @@ def get_executor() -> ThreadPoolExecutor:
 
 
 def init_session_state() -> None:
+    if "thread_id" not in st.session_state:
+        st.session_state.thread_id = str(uuid.uuid4())[:8]
     if "messages" not in st.session_state:
+        tid = st.session_state.thread_id
         st.session_state.messages = [
+            {"role": "system", "content": f"Session started · ID: {tid}"},
+            {"role": "system", "content": "Pizza Sales AI Assistant joined the chat"},
             {
                 "role": "assistant",
                 "content": (
@@ -305,7 +310,7 @@ def init_session_state() -> None:
                     "viewing and adjust the dashboard filters for you. What would you "
                     "like to know?"
                 ),
-            }
+            },
         ]
     if "filter_months" not in st.session_state:
         st.session_state.filter_months = (1, 12)
@@ -313,8 +318,6 @@ def init_session_state() -> None:
         st.session_state.filter_categories = []
     if "filter_sizes" not in st.session_state:
         st.session_state.filter_sizes = []
-    if "thread_id" not in st.session_state:
-        st.session_state.thread_id = str(uuid.uuid4())
     if "unread" not in st.session_state:
         st.session_state.unread = 1
     if "processing" not in st.session_state:
