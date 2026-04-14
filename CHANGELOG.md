@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The changelog is maintained with Commitizen and Conventional Commits.
 
+## v0.1.3 (2026-04-14)
+
+### Fix
+
+- **examples**: Reset Filters now correctly resets all sidebar widgets
+- bubble button and chat window survive rapid Streamlit reruns
+
 ## v0.1.2 (2026-04-14)
 
 ### Feat
