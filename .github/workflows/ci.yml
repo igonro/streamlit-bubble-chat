@@ -79,8 +79,12 @@ jobs:
           path: dist/*
 
   e2e-tests:
-    name: E2E tests (Playwright)
+    name: E2E tests (Playwright, py${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
 
     steps:
       - name: Check out repository
@@ -105,7 +109,7 @@ jobs:
           cache-dependency-glob: |
             pyproject.toml
             uv.lock
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
 
       - name: Sync dependencies
         run: uv sync --locked
