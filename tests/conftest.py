@@ -45,7 +45,9 @@ def streamlit_app_factory() -> Iterator[Callable[[str, int], str]]:
     processes: list[subprocess.Popen[str]] = []
 
     def _launch(example_name: str, port: int) -> str:
-        script_path = EXAMPLES_DIR / example_name
+        script_path = ROOT_DIR / example_name
+        if not script_path.exists():
+            script_path = EXAMPLES_DIR / example_name
         base_url = f"http://127.0.0.1:{port}"
         process = subprocess.Popen(
             [

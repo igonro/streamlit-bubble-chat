@@ -3,6 +3,7 @@ import type {
   FrontendRendererArgs,
 } from "@streamlit/component-v2-lib";
 import "./styles.css";
+import cssText from "./styles.css?inline";
 
 /* ─── Types ─── */
 
@@ -127,93 +128,125 @@ const ICON_SEND = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 
 /* ─── DOM Builder ─── */
 
-function buildDOM(): HTMLDivElement {
-  const root = document.createElement("div");
-  root.className = "stbc-root";
+/**
+ * Inject a persistent copy of the component's full CSS into <head>.
+ * Streamlit removes the component's <style> tag when it briefly unmounts
+ * during reruns.  Body-level singletons lose all styling (positioning,
+ * visibility, decoration) when that happens.  This persistent copy
+ * ensures styles survive across mount/unmount cycles.
+ */
+function ensurePersistentStyles(): void {
+  if (document.getElementById("stbc-persistent-css")) return;
+  const s = document.createElement("style");
+  s.id = "stbc-persistent-css";
+  s.textContent = cssText;
+  document.head.appendChild(s);
+}
 
-  // Backdrop (on document.body to escape the component stacking context)
-  const backdrop = document.createElement("div");
-  backdrop.className = "stbc-backdrop";
-  document.body.appendChild(backdrop);
+/**
+ * Ensure ALL body-level singletons exist (root + window + backdrop).
+ * Every visible element lives on document.body — escaping the component's
+ * parentElement — so they survive Streamlit destroying/replacing the
+ * component container during rapid fragment reruns.
+ * These elements are NEVER removed by cleanup.
+ */
+function ensureBodyElements(): {
+  root: HTMLElement;
+  win: HTMLElement;
+  backdrop: HTMLElement;
+} {
+  let root = document.querySelector(".stbc-root") as HTMLElement | null;
+  if (!root) {
+    root = document.createElement("div");
+    root.className = "stbc-root";
 
-  // Chat window (on document.body — same reason as backdrop)
-  const win = document.createElement("div");
-  win.className = "stbc-window";
+    const bubbleBtn = document.createElement("button");
+    bubbleBtn.className = "stbc-bubble-btn";
+    bubbleBtn.innerHTML = ICON_CHAT;
+    bubbleBtn.title = "Open chat";
 
-  // -- Header
-  const header = document.createElement("div");
-  header.className = "stbc-header";
+    const badge = document.createElement("span");
+    badge.className = "stbc-badge stbc-hidden";
+    bubbleBtn.appendChild(badge);
 
-  const title = document.createElement("span");
-  title.className = "stbc-header-title";
-  header.appendChild(title);
+    root.appendChild(bubbleBtn);
+    document.body.appendChild(root);
+  }
 
-  const actions = document.createElement("div");
-  actions.className = "stbc-header-actions";
+  let backdrop = document.querySelector(".stbc-backdrop") as HTMLElement | null;
+  if (!backdrop) {
+    backdrop = document.createElement("div");
+    backdrop.className = "stbc-backdrop";
+    document.body.appendChild(backdrop);
+  }
 
-  const maximizeBtn = document.createElement("button");
-  maximizeBtn.className = "stbc-header-btn stbc-maximize-btn";
-  maximizeBtn.title = "Maximize";
-  maximizeBtn.innerHTML = ICON_MAXIMIZE;
-  actions.appendChild(maximizeBtn);
+  let win = document.querySelector(".stbc-window") as HTMLElement | null;
+  if (!win) {
+    win = document.createElement("div");
+    win.className = "stbc-window";
 
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "stbc-header-btn stbc-close-btn";
-  closeBtn.title = "Close";
-  closeBtn.innerHTML = ICON_CLOSE;
-  actions.appendChild(closeBtn);
+    // -- Header
+    const header = document.createElement("div");
+    header.className = "stbc-header";
 
-  header.appendChild(actions);
-  win.appendChild(header);
+    const title = document.createElement("span");
+    title.className = "stbc-header-title";
+    header.appendChild(title);
 
-  // -- Messages container
-  const messages = document.createElement("div");
-  messages.className = "stbc-messages";
-  win.appendChild(messages);
+    const actions = document.createElement("div");
+    actions.className = "stbc-header-actions";
 
-  // -- Input area
-  const inputArea = document.createElement("div");
-  inputArea.className = "stbc-input-area";
+    const maximizeBtn = document.createElement("button");
+    maximizeBtn.className = "stbc-header-btn stbc-maximize-btn";
+    maximizeBtn.title = "Maximize";
+    maximizeBtn.innerHTML = ICON_MAXIMIZE;
+    actions.appendChild(maximizeBtn);
 
-  const input = document.createElement("input");
-  input.className = "stbc-input";
-  input.type = "text";
-  input.placeholder = "Type a message…";
-  input.autocomplete = "off";
-  inputArea.appendChild(input);
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "stbc-header-btn stbc-close-btn";
+    closeBtn.title = "Close";
+    closeBtn.innerHTML = ICON_CLOSE;
+    actions.appendChild(closeBtn);
 
-  const sendBtn = document.createElement("button");
-  sendBtn.className = "stbc-send-btn";
-  sendBtn.innerHTML = `Send ${ICON_SEND}`;
-  inputArea.appendChild(sendBtn);
+    header.appendChild(actions);
+    win.appendChild(header);
 
-  win.appendChild(inputArea);
-  document.body.appendChild(win);
+    // -- Messages container
+    const messages = document.createElement("div");
+    messages.className = "stbc-messages";
+    win.appendChild(messages);
 
-  // Bubble button
-  const bubbleBtn = document.createElement("button");
-  bubbleBtn.className = "stbc-bubble-btn";
-  bubbleBtn.innerHTML = ICON_CHAT;
-  bubbleBtn.title = "Open chat";
+    // -- Input area
+    const inputArea = document.createElement("div");
+    inputArea.className = "stbc-input-area";
 
-  const badge = document.createElement("span");
-  badge.className = "stbc-badge stbc-hidden";
-  bubbleBtn.appendChild(badge);
+    const input = document.createElement("input");
+    input.className = "stbc-input";
+    input.type = "text";
+    input.placeholder = "Type a message…";
+    input.autocomplete = "off";
+    inputArea.appendChild(input);
 
-  root.appendChild(bubbleBtn);
+    const sendBtn = document.createElement("button");
+    sendBtn.className = "stbc-send-btn";
+    sendBtn.innerHTML = `Send ${ICON_SEND}`;
+    inputArea.appendChild(sendBtn);
 
-  return root;
+    win.appendChild(inputArea);
+    document.body.appendChild(win);
+  }
+
+  return { root, win, backdrop };
 }
 
 /* ─── UI Sync ─── */
 
 function applyWindowState(
-  _root: HTMLElement,
+  win: HTMLElement,
+  backdrop: HTMLElement,
   isOpen: boolean,
   isMaximized: boolean,
 ) {
-  const win = document.querySelector(".stbc-window") as HTMLElement;
-  const backdrop = document.querySelector(".stbc-backdrop") as HTMLElement;
   const maxBtn = win.querySelector(".stbc-maximize-btn") as HTMLElement;
 
   if (isOpen) {
@@ -461,55 +494,47 @@ const BubbleChat: FrontendRenderer = (
   const d = data as BubbleChatData;
 
   ensureMaterialFont();
+  ensurePersistentStyles();
 
-  // Ensure our root element exists inside parentElement
-  let root = parentElement.querySelector(".stbc-root") as HTMLElement | null;
-  if (!root) {
-    root = buildDOM();
-    parentElement.appendChild(root);
-  }
+  // All visible UI lives in body-level singletons — immune to
+  // parentElement destruction during rapid Streamlit fragment reruns.
+  const { root, win, backdrop } = ensureBodyElements();
+
+  // Use parentElement only for reading Streamlit theme variables.
+  syncThemeVars(parentElement as HTMLElement, root, win, backdrop);
 
   // Apply custom theme color + auto-contrast foreground
   if (d.theme_color) {
     const fg = contrastColor(d.theme_color);
     root.style.setProperty("--stbc-theme-color", d.theme_color);
     root.style.setProperty("--stbc-theme-fg", fg);
-    const win = document.querySelector(".stbc-window") as HTMLElement;
-    if (win) {
-      win.style.setProperty("--stbc-theme-color", d.theme_color);
-      win.style.setProperty("--stbc-theme-fg", fg);
-    }
-    const backdrop = document.querySelector(".stbc-backdrop") as HTMLElement;
-    if (backdrop)
-      backdrop.style.setProperty("--stbc-theme-color", d.theme_color);
+    win.style.setProperty("--stbc-theme-color", d.theme_color);
+    win.style.setProperty("--stbc-theme-fg", fg);
+    backdrop.style.setProperty("--stbc-theme-color", d.theme_color);
   } else {
     root.style.removeProperty("--stbc-theme-color");
     root.style.removeProperty("--stbc-theme-fg");
   }
 
-  // Propagate Streamlit theme variables to body-level window/backdrop.
-  {
-    const bodyWin = document.querySelector(".stbc-window") as HTMLElement;
-    const bodyBackdrop = document.querySelector(".stbc-backdrop") as HTMLElement;
-    if (bodyWin && bodyBackdrop) {
-      syncThemeVars(parentElement as HTMLElement, bodyWin, bodyBackdrop);
-    }
+  // Apply Python state ONLY on the very first render (initial open/close).
+  // After that, the DOM is the source of truth — user interactions set
+  // classes directly, and we never let stale Python echoes override them.
+  if (!win.hasAttribute("data-stbc-init")) {
+    win.setAttribute("data-stbc-init", "true");
+    applyWindowState(win, backdrop, d.is_open, d.is_maximized);
   }
 
-  // Read visual state from data (Python is source of truth)
-  const isOpen = d.is_open;
-  const isMaximized = d.is_maximized;
+  // Read visual state from DOM (immune to Python echo lag)
+  const isOpen = win.classList.contains("stbc-open");
+  const isMaximized = win.classList.contains("stbc-maximized");
 
   // Detect "just opened" transition for scroll targeting
   const wasOpen = root.getAttribute("data-was-open") === "true";
   root.setAttribute("data-was-open", String(isOpen));
   const justOpened = isOpen && !wasOpen;
 
-  // Sync window state
-  applyWindowState(root, isOpen, isMaximized);
-
   // Title
-  const titleEl = document.querySelector(".stbc-header-title") as HTMLElement;
+  const titleEl = win.querySelector(".stbc-header-title") as HTMLElement;
   titleEl.textContent = d.window_title;
 
   // Badge: hide when chat window is open
@@ -525,7 +550,7 @@ const BubbleChat: FrontendRenderer = (
   const dividerEl = renderMessages(root, d.messages, d.unread_count, d);
 
   // Scroll: to divider on open, to bottom on new messages
-  const messagesContainer = document.querySelector(".stbc-messages") as HTMLElement;
+  const messagesContainer = win.querySelector(".stbc-messages") as HTMLElement;
   requestAnimationFrame(() => {
     if (justOpened && dividerEl) {
       dividerEl.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -537,18 +562,17 @@ const BubbleChat: FrontendRenderer = (
   // ── Event handlers ──
 
   const bubbleBtn = root.querySelector(".stbc-bubble-btn") as HTMLElement;
-  const closeBtn = document.querySelector(".stbc-close-btn") as HTMLElement;
-  const maxBtn = document.querySelector(".stbc-maximize-btn") as HTMLElement;
-  const backdrop = document.querySelector(".stbc-backdrop") as HTMLElement;
-  const input = document.querySelector(".stbc-input") as HTMLInputElement;
-  const sendBtn = document.querySelector(".stbc-send-btn") as HTMLButtonElement;
+  const closeBtn = win.querySelector(".stbc-close-btn") as HTMLElement;
+  const maxBtn = win.querySelector(".stbc-maximize-btn") as HTMLElement;
+  const input = win.querySelector(".stbc-input") as HTMLInputElement;
+  const sendBtn = win.querySelector(".stbc-send-btn") as HTMLButtonElement;
 
   // Open/close bubble
   bubbleBtn.onclick = () => {
-    const nowOpen = !document.querySelector(".stbc-window")!.classList.contains("stbc-open");
-    applyWindowState(root!, nowOpen, false);
+    const nowOpen = !win.classList.contains("stbc-open");
+    applyWindowState(win, backdrop, nowOpen, false);
     setStateValue("is_open", nowOpen);
-    if (!nowOpen) {
+    if (!nowOpen && win.classList.contains("stbc-maximized")) {
       setStateValue("is_maximized", false);
     }
     if (nowOpen) {
@@ -558,22 +582,24 @@ const BubbleChat: FrontendRenderer = (
 
   // Close via header button
   closeBtn.onclick = () => {
-    applyWindowState(root!, false, false);
+    const wasMaximized = win.classList.contains("stbc-maximized");
+    applyWindowState(win, backdrop, false, false);
     setStateValue("is_open", false);
-    setStateValue("is_maximized", false);
+    if (wasMaximized) {
+      setStateValue("is_maximized", false);
+    }
   };
 
   // Maximize toggle
   maxBtn.onclick = () => {
-    const win = document.querySelector(".stbc-window") as HTMLElement;
     const nowMaximized = !win.classList.contains("stbc-maximized");
-    applyWindowState(root!, true, nowMaximized);
+    applyWindowState(win, backdrop, true, nowMaximized);
     setStateValue("is_maximized", nowMaximized);
   };
 
   // Backdrop click → close maximized (go to minimized)
   backdrop.onclick = () => {
-    applyWindowState(root!, true, false);
+    applyWindowState(win, backdrop, true, false);
     setStateValue("is_maximized", false);
   };
 
@@ -599,10 +625,9 @@ const BubbleChat: FrontendRenderer = (
     requestAnimationFrame(() => input.focus());
   }
 
-  // Cleanup on unmount
-  return () => {
-    root?.remove();
-  };
+  // Cleanup: no-op — all visible UI lives in body-level singletons
+  // that persist across Streamlit mount/unmount cycles.
+  return () => {};
 };
 
 export default BubbleChat;
