@@ -1,6 +1,6 @@
 [project]
 name = "streamlit-bubble-chat"
-version = "0.1.1"
+version = "0.1.2"
 
 [[tool.streamlit.component.components]]
 name = "bubble_chat"
