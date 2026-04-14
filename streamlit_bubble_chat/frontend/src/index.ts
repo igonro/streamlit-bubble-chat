@@ -131,12 +131,12 @@ function buildDOM(): HTMLDivElement {
   const root = document.createElement("div");
   root.className = "stbc-root";
 
-  // Backdrop
+  // Backdrop (on document.body to escape the component stacking context)
   const backdrop = document.createElement("div");
   backdrop.className = "stbc-backdrop";
-  root.appendChild(backdrop);
+  document.body.appendChild(backdrop);
 
-  // Chat window
+  // Chat window (on document.body — same reason as backdrop)
   const win = document.createElement("div");
   win.className = "stbc-window";
 
@@ -188,7 +188,7 @@ function buildDOM(): HTMLDivElement {
   inputArea.appendChild(sendBtn);
 
   win.appendChild(inputArea);
-  root.appendChild(win);
+  document.body.appendChild(win);
 
   // Bubble button
   const bubbleBtn = document.createElement("button");
@@ -208,13 +208,13 @@ function buildDOM(): HTMLDivElement {
 /* ─── UI Sync ─── */
 
 function applyWindowState(
-  root: HTMLElement,
+  _root: HTMLElement,
   isOpen: boolean,
   isMaximized: boolean,
 ) {
-  const win = root.querySelector(".stbc-window") as HTMLElement;
-  const backdrop = root.querySelector(".stbc-backdrop") as HTMLElement;
-  const maxBtn = root.querySelector(".stbc-maximize-btn") as HTMLElement;
+  const win = document.querySelector(".stbc-window") as HTMLElement;
+  const backdrop = document.querySelector(".stbc-backdrop") as HTMLElement;
+  const maxBtn = win.querySelector(".stbc-maximize-btn") as HTMLElement;
 
   if (isOpen) {
     win.classList.add("stbc-open");
@@ -240,12 +240,12 @@ function applyWindowState(
 /* ─── Message Rendering ─── */
 
 function renderMessages(
-  root: HTMLElement,
+  _root: HTMLElement,
   messages: Message[],
   unreadCount: number,
   d: BubbleChatData,
 ): HTMLElement | null {
-  const container = root.querySelector(".stbc-messages") as HTMLElement;
+  const container = document.querySelector(".stbc-messages") as HTMLElement;
 
   // Remove existing divider (will re-insert at correct position)
   const oldDivider = container.querySelector(".stbc-unread-divider");
@@ -427,6 +427,33 @@ function ensureMaterialFont(): void {
 
 /* ─── Main Component ─── */
 
+/** Streamlit theme CSS custom properties used by the component. */
+const ST_THEME_VARS = [
+  "--st-background-color",
+  "--st-text-color",
+  "--st-primary-color",
+  "--st-border-color",
+  "--st-red-color",
+  "--st-secondary-background-color",
+  "--st-base-font-size",
+  "--st-font",
+];
+
+/**
+ * Copy Streamlit theme variables from the component's ancestor (where
+ * Streamlit defines them) onto body-level elements that live outside the
+ * component tree.  This keeps the chat window and backdrop themed.
+ */
+function syncThemeVars(source: HTMLElement, ...targets: HTMLElement[]): void {
+  const cs = getComputedStyle(source);
+  for (const v of ST_THEME_VARS) {
+    const val = cs.getPropertyValue(v).trim();
+    if (val) {
+      for (const t of targets) t.style.setProperty(v, val);
+    }
+  }
+}
+
 const BubbleChat: FrontendRenderer = (
   args: FrontendRendererArgs,
 ) => {
@@ -447,17 +474,26 @@ const BubbleChat: FrontendRenderer = (
     const fg = contrastColor(d.theme_color);
     root.style.setProperty("--stbc-theme-color", d.theme_color);
     root.style.setProperty("--stbc-theme-fg", fg);
-    const win = root.querySelector(".stbc-window") as HTMLElement;
+    const win = document.querySelector(".stbc-window") as HTMLElement;
     if (win) {
       win.style.setProperty("--stbc-theme-color", d.theme_color);
       win.style.setProperty("--stbc-theme-fg", fg);
     }
-    const backdrop = root.querySelector(".stbc-backdrop") as HTMLElement;
+    const backdrop = document.querySelector(".stbc-backdrop") as HTMLElement;
     if (backdrop)
       backdrop.style.setProperty("--stbc-theme-color", d.theme_color);
   } else {
     root.style.removeProperty("--stbc-theme-color");
     root.style.removeProperty("--stbc-theme-fg");
+  }
+
+  // Propagate Streamlit theme variables to body-level window/backdrop.
+  {
+    const bodyWin = document.querySelector(".stbc-window") as HTMLElement;
+    const bodyBackdrop = document.querySelector(".stbc-backdrop") as HTMLElement;
+    if (bodyWin && bodyBackdrop) {
+      syncThemeVars(parentElement as HTMLElement, bodyWin, bodyBackdrop);
+    }
   }
 
   // Read visual state from data (Python is source of truth)
@@ -473,7 +509,7 @@ const BubbleChat: FrontendRenderer = (
   applyWindowState(root, isOpen, isMaximized);
 
   // Title
-  const titleEl = root.querySelector(".stbc-header-title") as HTMLElement;
+  const titleEl = document.querySelector(".stbc-header-title") as HTMLElement;
   titleEl.textContent = d.window_title;
 
   // Badge: hide when chat window is open
@@ -489,7 +525,7 @@ const BubbleChat: FrontendRenderer = (
   const dividerEl = renderMessages(root, d.messages, d.unread_count, d);
 
   // Scroll: to divider on open, to bottom on new messages
-  const messagesContainer = root.querySelector(".stbc-messages") as HTMLElement;
+  const messagesContainer = document.querySelector(".stbc-messages") as HTMLElement;
   requestAnimationFrame(() => {
     if (justOpened && dividerEl) {
       dividerEl.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -501,15 +537,15 @@ const BubbleChat: FrontendRenderer = (
   // ── Event handlers ──
 
   const bubbleBtn = root.querySelector(".stbc-bubble-btn") as HTMLElement;
-  const closeBtn = root.querySelector(".stbc-close-btn") as HTMLElement;
-  const maxBtn = root.querySelector(".stbc-maximize-btn") as HTMLElement;
-  const backdrop = root.querySelector(".stbc-backdrop") as HTMLElement;
-  const input = root.querySelector(".stbc-input") as HTMLInputElement;
-  const sendBtn = root.querySelector(".stbc-send-btn") as HTMLButtonElement;
+  const closeBtn = document.querySelector(".stbc-close-btn") as HTMLElement;
+  const maxBtn = document.querySelector(".stbc-maximize-btn") as HTMLElement;
+  const backdrop = document.querySelector(".stbc-backdrop") as HTMLElement;
+  const input = document.querySelector(".stbc-input") as HTMLInputElement;
+  const sendBtn = document.querySelector(".stbc-send-btn") as HTMLButtonElement;
 
   // Open/close bubble
   bubbleBtn.onclick = () => {
-    const nowOpen = !root!.querySelector(".stbc-window")!.classList.contains("stbc-open");
+    const nowOpen = !document.querySelector(".stbc-window")!.classList.contains("stbc-open");
     applyWindowState(root!, nowOpen, false);
     setStateValue("is_open", nowOpen);
     if (!nowOpen) {
@@ -529,7 +565,7 @@ const BubbleChat: FrontendRenderer = (
 
   // Maximize toggle
   maxBtn.onclick = () => {
-    const win = root!.querySelector(".stbc-window") as HTMLElement;
+    const win = document.querySelector(".stbc-window") as HTMLElement;
     const nowMaximized = !win.classList.contains("stbc-maximized");
     applyWindowState(root!, true, nowMaximized);
     setStateValue("is_maximized", nowMaximized);
