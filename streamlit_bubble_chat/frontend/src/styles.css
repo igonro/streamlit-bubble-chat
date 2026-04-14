@@ -112,6 +112,13 @@
     border-radius: 12px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
     overflow: hidden;
+    transition:
+        width 0.3s ease,
+        height 0.3s ease,
+        top 0.3s ease,
+        left 0.3s ease,
+        bottom 0.3s ease,
+        right 0.3s ease;
 }
 
 .stbc-window.stbc-open {
@@ -148,10 +155,20 @@
     z-index: 999997;
     background: rgba(0, 0, 0, 0.5);
     display: none;
+    animation: stbc-fadeIn 0.2s ease forwards;
 }
 
 .stbc-backdrop.stbc-visible {
     display: block;
+}
+
+@keyframes stbc-fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 /* ── Header ── */
