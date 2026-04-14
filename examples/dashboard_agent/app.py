@@ -519,6 +519,19 @@ def main() -> None:
 
     init_session_state()
 
+    # Apply filter reset from the previous run — must run before any widget
+    # with those keys is instantiated, so we use a flag + rerun pattern.
+    if st.session_state.pop("_reset_filters_requested", False):
+        st.session_state.filter_months = (1, 12)
+        st.session_state.filter_categories = []
+        st.session_state.filter_sizes = []
+        # Set all widget keys to reset values before they are instantiated.
+        # Using the flag + rerun pattern avoids StreamlitAPIException (widgets
+        # cannot be modified after instantiation in the same run).
+        st.session_state["_month_slider"] = (1, 12)
+        st.session_state["_category_multi"] = []
+        st.session_state["_size_multi"] = []
+
     processing = st.session_state.processing
     master_df = load_data()
 
@@ -560,12 +573,7 @@ def main() -> None:
         st.session_state.filter_sizes = selected_sizes
 
         if st.button("Reset Filters", use_container_width=True, disabled=processing):
-            st.session_state.filter_months = (1, 12)
-            st.session_state.filter_categories = []
-            st.session_state.filter_sizes = []
-            st.session_state["_month_slider"] = (1, 12)
-            st.session_state["_category_multi"] = []
-            st.session_state["_size_multi"] = []
+            st.session_state["_reset_filters_requested"] = True
             st.rerun()
 
         st.divider()
