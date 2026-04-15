@@ -10,6 +10,11 @@ import { ensureMaterialFont } from "./icons";
 import { syncThemeVars } from "./theme";
 import { ensurePersistentStyles, ensureBodyElements, applyWindowState } from "./dom";
 import { renderMessages } from "./messages";
+import {
+  countAssistantMessages,
+  ensureNotificationAudioUnlocked,
+  playNotificationSound,
+} from "./sound";
 
 /* ─── Main Component ─── */
 
@@ -21,6 +26,7 @@ const BubbleChat: FrontendRenderer = (
 
   ensureMaterialFont();
   ensurePersistentStyles();
+  ensureNotificationAudioUnlocked();
 
   // All visible UI lives in body-level singletons — immune to
   // parentElement destruction during rapid Streamlit fragment reruns.
@@ -52,6 +58,22 @@ const BubbleChat: FrontendRenderer = (
 
   // Read visual state from DOM (immune to Python echo lag)
   const isOpen = win.classList.contains("stbc-open");
+
+  const assistantCount = countAssistantMessages(d.messages);
+  const prevAssistantCountAttr = root.getAttribute("data-prev-assistant-count");
+  const prevAssistantCount = prevAssistantCountAttr
+    ? Number(prevAssistantCountAttr)
+    : null;
+  const shouldPlaySound =
+    d.play_sound_on_unread &&
+    !isOpen &&
+    prevAssistantCount !== null &&
+    assistantCount > prevAssistantCount;
+  root.setAttribute("data-prev-assistant-count", String(assistantCount));
+
+  if (shouldPlaySound) {
+    playNotificationSound();
+  }
 
   // Detect "just opened" transition for scroll targeting
   const wasOpen = root.getAttribute("data-was-open") === "true";

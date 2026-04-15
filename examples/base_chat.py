@@ -72,6 +72,7 @@ def handle_new_message():
 result = bubble_chat(
     messages=st.session_state.messages,
     unread_count=st.session_state.unread,
+    play_sound_on_unread=True,
     window_title="Support Chat",
     theme_color="#007AFF",
     name_colors={"Helper": "#e67e22", "Bot": "#2ecc71"},
@@ -86,6 +87,10 @@ if chat_state.get("is_open", False) and st.session_state.unread > 0:
 
 # ── Demo controls ──
 st.subheader("Controls")
+st.caption(
+    "With the chat closed, use 'Add assistant message' to verify "
+    "the built-in sound notification."
+)
 
 with st.container(horizontal=True):
     if st.button("Add assistant message"):

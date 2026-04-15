@@ -85,6 +85,7 @@ def test_bubble_chat_wires_callbacks_and_defaults(component_module, monkeypatch)
 
     component_module.bubble_chat(
         messages=[{"role": "assistant", "content": "Hello"}],
+        play_sound_on_unread=True,
         theme_color="#007AFF",
         name_colors={"Helper": "#e67e22"},
         key="chat",
@@ -92,12 +93,31 @@ def test_bubble_chat_wires_callbacks_and_defaults(component_module, monkeypatch)
     )
 
     assert captured["default"] == {"is_open": False, "is_maximized": False}
+    assert captured["data"]["play_sound_on_unread"] is True
     assert captured["data"]["theme_color"] == "#007AFF"
     assert captured["data"]["name_colors"] == {"Helper": "#e67e22"}
     assert captured["data"]["user_icon_bg"] == ""
     assert callable(captured["on_is_open_change"])
     assert callable(captured["on_is_maximized_change"])
     assert captured["on_new_message_change"] is on_message
+
+
+def test_bubble_chat_sound_defaults_to_false(component_module, monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_component(**kwargs):
+        captured.update(kwargs)
+        return {"ok": True}
+
+    monkeypatch.setattr(component_module, "_component", fake_component)
+    monkeypatch.setattr(component_module.st, "session_state", {}, raising=False)
+
+    component_module.bubble_chat(
+        messages=[{"role": "assistant", "content": "Hello"}],
+        key="chat",
+    )
+
+    assert captured["data"]["play_sound_on_unread"] is False
 
 
 # ── Validation tests ──

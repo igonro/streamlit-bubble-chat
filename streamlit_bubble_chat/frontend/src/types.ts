@@ -17,6 +17,7 @@ export interface BubbleChatData {
   messages: Message[];
   type: "simple" | "avatar";
   unread_count: number;
+  play_sound_on_unread: boolean;
   window_title: string;
   theme_color: string | null;
   show_names: boolean;

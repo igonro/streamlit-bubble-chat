@@ -10,6 +10,7 @@ result = bubble_chat(
     *,
     type="simple",
     unread_count=0,
+    play_sound_on_unread=False,
     window_title="Chat",
     theme_color=None,
     show_names=True,
@@ -29,6 +30,7 @@ result = bubble_chat(
 | `messages` | `list[dict]` | *required* | List of message dicts. See [Message schema](#message-schema). |
 | `type` | `"simple"` \| `"avatar"` | `"simple"` | `"simple"` shows plain bubbles. `"avatar"` adds round icon circles. |
 | `unread_count` | `int` | `0` | Badge number on the floating bubble. Hidden when `0`. |
+| `play_sound_on_unread` | `bool` | `False` | Play a built-in sound when a new assistant message arrives while the chat is closed. Browser autoplay policies may block playback until the user has interacted with the page. |
 | `window_title` | `str` | `"Chat"` | Text in the chat window header bar. |
 | `theme_color` | `str \| None` | `None` | Primary color override (`#RRGGBB`). Falls back to the Streamlit theme primary. |
 | `show_names` | `bool` | `True` | Show agent `name` labels above assistant messages. |
@@ -153,3 +155,4 @@ The component also stores `is_open` and `is_maximized` as state values that trig
 - **Text only**: Message content is rendered as plain text via `textContent`. No markdown, HTML, or rich media.
 - **Material Icons require CDN**: `:material/…:` icons load the Google Fonts Material Symbols font at runtime. Emoji icons work offline.
 - **`key` is needed for state**: Without a `key`, `is_open` / `is_maximized` won't persist across reruns and `on_message` can't read the submitted text.
+- **Sound depends on browser policy**: `play_sound_on_unread=True` is best-effort. Browsers may block audio until the user has interacted with the page.

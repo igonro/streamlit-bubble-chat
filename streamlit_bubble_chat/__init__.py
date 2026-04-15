@@ -126,6 +126,7 @@ def bubble_chat(
     *,
     type: Literal["simple", "avatar"] = "simple",
     unread_count: int = 0,
+    play_sound_on_unread: bool = False,
     window_title: str = "Chat",
     theme_color: str | None = None,
     show_names: bool = True,
@@ -151,6 +152,11 @@ def bubble_chat(
               with an icon (emoji or Material Icon).
         unread_count: Number shown on the notification badge.  Hidden
             when 0.
+        play_sound_on_unread: Whether to play a built-in notification
+            sound when a new assistant message arrives while the chat
+            window is closed.  Disabled by default.  Browser autoplay
+            policies may block playback until the user has interacted
+            with the page.
         window_title: Title displayed in the chat window header.
         theme_color: Optional hex colour (e.g. ``"#6366f1"``).  Falls
             back to the Streamlit theme primary colour.
@@ -231,6 +237,7 @@ def bubble_chat(
         "messages": messages,
         "type": type,
         "unread_count": unread_count,
+        "play_sound_on_unread": play_sound_on_unread,
         "window_title": window_title,
         "theme_color": theme_color,
         "show_names": show_names,

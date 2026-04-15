@@ -80,6 +80,7 @@ bubble_chat(
     *,
     type="simple",
     unread_count=0,
+    play_sound_on_unread=False,
     window_title="Chat",
     theme_color=None,
     assistant_config=None,
@@ -113,6 +114,7 @@ All color parameters (`theme_color`, `user_icon_bg`, values in `assistant_config
 - `simple` mode for a clean message list.
 - `avatar` mode for named assistants with emoji or `:material/...:` icons.
 - Unread badges and an unread divider when new messages arrive.
+- Optional sound notification when a new assistant message arrives while the chat is closed.
 - System messages rendered as centered pills.
 - Theme-aware styling plus optional color overrides.
 - User and assistant avatar customization.
