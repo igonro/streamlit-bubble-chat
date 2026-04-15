@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The changelog is maintained with Commitizen and Conventional Commits.
 
+## v0.2.0 (2026-04-15)
+
+### Feat
+
+- add unread sound notifications
+
 ## v0.1.4 (2026-04-15)
 
 ### Feat
