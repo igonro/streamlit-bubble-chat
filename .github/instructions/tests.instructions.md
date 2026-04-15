@@ -90,9 +90,13 @@ Prefer `page.locator(".stbc-*")` over `page.query_selector` — locators are laz
 | `bubble_chat()` argument validation | Unit test |
 | `assistant_config` merging / defaults | Unit test |
 | `unread_count` passed correctly to component | Unit test |
+| Invalid roles / missing content / bad hex colors | Unit test |
+| `key=None` skips session state | Unit test |
 | Bubble renders in the page | E2E |
 | Message appears after user types + sends | E2E |
 | Unread divider skips system messages | E2E |
 | Badge count resets on open | E2E |
 | Avatar colors / contrast | E2E |
 | CSS class applied for role | E2E |
+| ARIA attributes (`aria-label`, `aria-expanded`, `role`) | E2E |
+| Escape key closes window / exits maximized | E2E |

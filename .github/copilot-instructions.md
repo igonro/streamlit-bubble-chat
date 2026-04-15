@@ -37,15 +37,21 @@ E2E tests launch their own Streamlit process via `conftest.py` fixtures.
 - **Text content only in bubbles** — messages use `textContent` for rendering. No markdown support.
 - **APCA contrast** — avatar foreground color uses APCA 0.0.98G-4g to auto-select black or white text based on perceptual brightness.
 - **`unread_count` counts non-system messages only** — system messages don't increment it; the unread divider skips them.
-- **TypeScript strict mode** — changes to Python args require matching updates to the `BubbleChatData` interface in `index.ts`.
+- **TypeScript strict mode** — changes to Python args require matching updates to the `BubbleChatData` interface in `types.ts`.
 - **Conventional Commits** — `feat:`, `fix:`, `docs:`, etc. Enforced by git hooks via `prek`.
 
 ## Key Files
 
 | File | Role |
 |------|------|
-| `streamlit_bubble_chat/__init__.py` | Public Python API |
-| `streamlit_bubble_chat/frontend/src/index.ts` | All frontend logic (rendering, events, APCA) |
+| `streamlit_bubble_chat/__init__.py` | Public Python API (validation, config merge, component registration) |
+| `streamlit_bubble_chat/frontend/src/index.ts` | Slim renderer entry point — imports from modules below |
+| `streamlit_bubble_chat/frontend/src/types.ts` | TypeScript interfaces (`BubbleChatData`, `Message`, etc.) |
+| `streamlit_bubble_chat/frontend/src/dom.ts` | Body-level DOM singletons, ARIA attributes, window state |
+| `streamlit_bubble_chat/frontend/src/messages.ts` | Message rendering, unread divider, avatar layout |
+| `streamlit_bubble_chat/frontend/src/contrast.ts` | APCA contrast algorithm |
+| `streamlit_bubble_chat/frontend/src/icons.ts` | SVG icon constants, Material Symbols font loader |
+| `streamlit_bubble_chat/frontend/src/theme.ts` | Streamlit `--st-*` CSS variable sync |
 | `streamlit_bubble_chat/frontend/src/styles.css` | All styling |
 | `examples/base_chat.py` | Simple mode reference |
 | `examples/avatar_chat.py` | Avatar mode reference |
@@ -56,6 +62,6 @@ E2E tests launch their own Streamlit process via `conftest.py` fixtures.
 
 - After `make build-frontend`, always restart Streamlit — the hash changes.
 - `html=" "` (space, not empty string) in `st.components.v2.component()` is required to prevent iframe wrapping.
-- `theme_color` must be valid `#RRGGBB` — no validation in Python; invalid values silently break APCA.
+- `theme_color` and all color args must be valid `#RRGGBB` — Python raises `ValueError` on invalid hex; invalid values that bypass validation break APCA.
 - Material Symbols icons require Google Fonts CDN; emoji always work offline.
 - E2E tests wait up to 30 s for Streamlit startup; slow machines may need `STREAMLIT_STARTUP_TIMEOUT` tuned in `conftest.py`.
