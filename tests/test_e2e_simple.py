@@ -71,3 +71,91 @@ def test_simple_mode_chat_flow(simple_app, page_with_errors):
     page.wait_for_timeout(1000)
     assert page.locator(".stbc-msg").count() == 9
     assert errors == []
+
+
+@pytest.mark.e2e
+def test_aria_attributes(simple_app, page_with_errors):
+    """ARIA roles, labels, and aria-expanded are correctly set."""
+    page, errors = page_with_errors
+
+    page.goto(simple_app)
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(4000)
+
+    bubble = page.locator(".stbc-bubble-btn")
+    window = page.locator(".stbc-window")
+
+    # Bubble button should have aria-label and aria-expanded=false when closed
+    assert bubble.get_attribute("aria-label") == "Open chat"
+    assert bubble.get_attribute("aria-expanded") == "false"
+    assert bubble.get_attribute("aria-controls") == "stbc-chat-window"
+
+    # Window should be a dialog with aria-labelledby
+    assert window.get_attribute("role") == "dialog"
+    assert window.get_attribute("aria-labelledby") == "stbc-header-title"
+
+    # Open the chat
+    bubble.click()
+    page.wait_for_timeout(1500)
+
+    # After opening, aria-expanded should be true
+    assert bubble.get_attribute("aria-expanded") == "true"
+
+    # Input should have aria-label
+    assert page.locator(".stbc-input").get_attribute("aria-label") == "Chat message"
+
+    # Close/maximize buttons should have aria-labels
+    assert (
+        page.locator(".stbc-close-btn").get_attribute("aria-label")
+        == "Close chat window"
+    )
+    assert page.locator(".stbc-maximize-btn").get_attribute("aria-label") is not None
+
+    # Badge should have aria-live
+    assert page.locator(".stbc-badge").get_attribute("aria-live") == "polite"
+
+    # Send button should have aria-label
+    assert page.locator(".stbc-send-btn").get_attribute("aria-label") == "Send message"
+
+    # Close
+    page.locator(".stbc-close-btn").click()
+    page.wait_for_timeout(1000)
+    assert bubble.get_attribute("aria-expanded") == "false"
+
+    assert errors == []
+
+
+@pytest.mark.e2e
+def test_escape_key_closes_window(simple_app, page_with_errors):
+    """Pressing Escape closes the chat window, or exits maximized first."""
+    page, errors = page_with_errors
+
+    page.goto(simple_app)
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(4000)
+
+    bubble = page.locator(".stbc-bubble-btn")
+    window = page.locator(".stbc-window")
+
+    # Open chat
+    bubble.click()
+    page.wait_for_timeout(1500)
+    assert window.is_visible() is True
+
+    # Maximize
+    page.locator(".stbc-maximize-btn").click()
+    page.wait_for_timeout(1000)
+    assert window.evaluate("el => el.classList.contains('stbc-maximized')") is True
+
+    # Escape should exit maximized first (still open)
+    page.locator(".stbc-input").press("Escape")
+    page.wait_for_timeout(1000)
+    assert window.evaluate("el => el.classList.contains('stbc-maximized')") is False
+    assert window.is_visible() is True
+
+    # Escape again should close the window
+    page.locator(".stbc-input").press("Escape")
+    page.wait_for_timeout(1000)
+    assert window.is_visible() is False
+
+    assert errors == []

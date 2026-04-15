@@ -3,17 +3,22 @@
 import streamlit as st
 from streamlit_bubble_chat import bubble_chat
 
-st.set_page_config(page_title="Bubble Chat Demo", layout="wide")
+st.set_page_config(
+    page_title="Bubble Chat Demo",
+    page_icon=":material/chat:",
+    layout="wide",
+)
 
-st.title("🗨️ Streamlit Bubble Chat — Simple Mode")
-st.write(
+st.title("Streamlit Bubble Chat — Simple mode")
+st.caption(
     "The default `type='simple'` mode — no avatars, clean bubble layout. "
     "Click the chat bubble in the bottom-right corner to explore."
 )
 
 # ── Session state setup ──
-if "messages" not in st.session_state:
-    st.session_state.messages = [
+st.session_state.setdefault(
+    "messages",
+    [
         {
             "role": "assistant",
             "content": (
@@ -45,10 +50,10 @@ if "messages" not in st.session_state:
                 "— check Helper and Bot above!"
             ),
         },
-    ]
+    ],
+)
 
-if "unread" not in st.session_state:
-    st.session_state.unread = 2
+st.session_state.setdefault("unread", 2)
 
 
 def handle_new_message():
@@ -80,12 +85,9 @@ if chat_state.get("is_open", False) and st.session_state.unread > 0:
     st.session_state.unread = 0
 
 # ── Demo controls ──
-st.divider()
 st.subheader("Controls")
 
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
+with st.container(horizontal=True):
     if st.button("Add assistant message"):
         st.session_state.messages.append(
             {"role": "assistant", "content": "Here is an update from the assistant."}
@@ -95,33 +97,29 @@ with col1:
             st.session_state.unread += 1
         st.rerun()
 
-with col2:
     if st.button("Add system message"):
         st.session_state.messages.append(
             {"role": "system", "content": "System: configuration updated."}
         )
         st.rerun()
 
-with col3:
     if st.button("Clear messages"):
         st.session_state.messages = []
         st.session_state.unread = 0
         st.rerun()
 
-with col4:
     if st.button("Set unread = 5"):
         st.session_state.unread = 5
         st.rerun()
 
-st.divider()
-st.subheader("Current State")
-st.json(
-    {
-        "messages_count": len(st.session_state.messages),
-        "unread": st.session_state.unread,
-        "chat_open": st.session_state.get("chat_bubble", {}).get("is_open", False),
-        "chat_maximized": st.session_state.get("chat_bubble", {}).get(
-            "is_maximized", False
-        ),
-    }
-)
+with st.expander("Current state"):
+    st.json(
+        {
+            "messages_count": len(st.session_state.messages),
+            "unread": st.session_state.unread,
+            "chat_open": st.session_state.get("chat_bubble", {}).get("is_open", False),
+            "chat_maximized": st.session_state.get("chat_bubble", {}).get(
+                "is_maximized", False
+            ),
+        }
+    )

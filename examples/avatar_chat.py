@@ -5,10 +5,14 @@ import random
 import streamlit as st
 from streamlit_bubble_chat import bubble_chat
 
-st.set_page_config(page_title="Avatar Chat", layout="wide")
+st.set_page_config(
+    page_title="Avatar Chat",
+    page_icon=":material/smart_toy:",
+    layout="wide",
+)
 
-st.title("🎨 Avatar Chat Mode")
-st.write(
+st.title("Avatar chat mode")
+st.caption(
     "This example uses `type='avatar'` to show a round avatar circle "
     "next to each message. Agents are configured via `assistant_config` "
     "with Material Icons or emoji, each with a custom background colour."
@@ -26,8 +30,9 @@ ASSISTANT_CONFIG = {
 AGENT_NAMES = ["Guide", "Designer", "Dev", "Tester"]
 
 # ── Session state ──
-if "messages" not in st.session_state:
-    st.session_state.messages = [
+st.session_state.setdefault(
+    "messages",
+    [
         {"role": "system", "content": "Welcome to the avatar chat demo."},
         {
             "role": "assistant",
@@ -68,10 +73,10 @@ if "messages" not in st.session_state:
                 'name. Try the button "Add system message"!'
             ),
         },
-    ]
+    ],
+)
 
-if "unread" not in st.session_state:
-    st.session_state.unread = 0
+st.session_state.setdefault("unread", 0)
 
 
 def handle_message():
@@ -113,13 +118,11 @@ if chat_state.get("is_open", False) and st.session_state.unread > 0:
     st.session_state.unread = 0
 
 # ── Demo controls ──
-st.divider()
-st.subheader("Simulate Agent Messages")
+st.subheader("Simulate agent messages")
 
-cols = st.columns(len(AGENT_NAMES))
-for col, agent in zip(cols, AGENT_NAMES, strict=True):
-    cfg = ASSISTANT_CONFIG[agent]
-    with col:
+with st.container(horizontal=True):
+    for agent in AGENT_NAMES:
+        cfg = ASSISTANT_CONFIG[agent]
         if st.button(f"{cfg['icon']} {agent}"):
             st.session_state.messages.append(
                 {
@@ -132,10 +135,7 @@ for col, agent in zip(cols, AGENT_NAMES, strict=True):
                 st.session_state.unread += 1
             st.rerun()
 
-st.divider()
-col1, col2, col3 = st.columns(3)
-
-with col1:
+with st.container(horizontal=True):
     if st.button("Add assistant message"):
         st.session_state.messages.append(
             {"role": "assistant", "content": "Here is an update from the assistant."}
@@ -144,27 +144,24 @@ with col1:
         if not chat_state.get("is_open", False):
             st.session_state.unread += 1
         st.rerun()
-with col2:
     if st.button("Add system message"):
         st.session_state.messages.append(
             {"role": "system", "content": "System: checkpoint saved."}
         )
         st.rerun()
-with col3:
     if st.button("Clear all"):
         st.session_state.messages = []
         st.session_state.unread = 0
         st.rerun()
 
-st.divider()
-st.subheader("State")
-st.json(
-    {
-        "messages_count": len(st.session_state.messages),
-        "unread": st.session_state.unread,
-        "chat_open": chat_state.get("is_open", False),
-        "agents_in_chat": sorted(
-            {m.get("name", "") for m in st.session_state.messages if m.get("name")}
-        ),
-    }
-)
+with st.expander("State"):
+    st.json(
+        {
+            "messages_count": len(st.session_state.messages),
+            "unread": st.session_state.unread,
+            "chat_open": chat_state.get("is_open", False),
+            "agents_in_chat": sorted(
+                {m.get("name", "") for m in st.session_state.messages if m.get("name")}
+            ),
+        }
+    )

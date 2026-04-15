@@ -1,9 +1,18 @@
-"""Streamlit Bubble Chat - A floating chat bubble widget for Streamlit apps."""
+"""Streamlit Bubble Chat - A floating chat bubble widget for Streamlit apps.
+
+.. warning::
+
+    This component renders as a **single global instance** per page.
+    Mounting multiple ``bubble_chat()`` calls in the same page will cause
+    them to share the same visible DOM elements (bubble, window, backdrop).
+    Only one ``bubble_chat()`` per page is supported.
+"""
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Any, Literal, TypedDict
 
 import streamlit as st
 from streamlit.errors import StreamlitAPIException
@@ -19,6 +28,62 @@ _DEFAULT_ASSISTANT: dict[str, str] = {
     "icon": ":material/robot_2:",
     "avatar_bg": "",
 }
+
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+_VALID_ROLES = {"user", "assistant", "system"}
+
+
+# ── Public types ──
+
+
+class MessageDict(TypedDict, total=False):
+    """Schema for a single chat message.
+
+    Required keys: ``role``, ``content``.
+    Optional keys: ``name`` (agent name for multi-agent scenarios).
+    """
+
+    role: str  # "user" | "assistant" | "system"
+    content: str
+    name: str
+
+
+class AssistantVisualConfig(TypedDict, total=False):
+    """Visual configuration for an assistant in avatar mode.
+
+    Required keys: ``icon``.
+    Optional keys: ``avatar_bg``, ``bubble_bg``, ``bubble_color``.
+    """
+
+    icon: str
+    avatar_bg: str
+    bubble_bg: str
+    bubble_color: str
+
+
+# ── Validation helpers ──
+
+
+def _validate_hex_color(value: str | None, param_name: str) -> None:
+    """Raise ``ValueError`` if *value* is not a valid ``#RRGGBB`` hex color."""
+    if value is not None and value != "" and not _HEX_COLOR_RE.match(value):
+        raise ValueError(
+            f"{param_name} must be a valid #RRGGBB hex color, got: {value!r}"
+        )
+
+
+def _validate_messages(messages: list[dict[str, str]]) -> None:
+    """Raise ``ValueError`` for invalid message dicts."""
+    for i, msg in enumerate(messages):
+        if "role" not in msg:
+            raise ValueError(f"messages[{i}] is missing required key 'role'")
+        if msg["role"] not in _VALID_ROLES:
+            raise ValueError(
+                f"messages[{i}]['role'] must be one of {_VALID_ROLES}, "
+                f"got: {msg['role']!r}"
+            )
+        if "content" not in msg:
+            raise ValueError(f"messages[{i}] is missing required key 'content'")
 
 
 def _create_component() -> Callable[..., Any]:
@@ -121,7 +186,33 @@ def bubble_chat(
     Returns:
         Component result object with ``.is_open``, ``.is_maximized``,
         and ``.new_message`` attributes.
+
+    Raises:
+        ValueError: If *theme_color*, any color in *assistant_config*,
+            *user_icon_bg*, or *name_colors* values are not valid
+            ``#RRGGBB`` hex strings.
+        ValueError: If any message dict is missing ``role`` or ``content``,
+            or contains an invalid ``role``.
     """
+    # ── Input validation ──
+    _validate_messages(messages)
+    _validate_hex_color(theme_color, "theme_color")
+    _validate_hex_color(user_icon_bg, "user_icon_bg")
+
+    for cfg_name, cfg in (assistant_config or {}).items():
+        _validate_hex_color(
+            cfg.get("avatar_bg"), f"assistant_config[{cfg_name!r}].avatar_bg"
+        )
+        _validate_hex_color(
+            cfg.get("bubble_bg"), f"assistant_config[{cfg_name!r}].bubble_bg"
+        )
+        _validate_hex_color(
+            cfg.get("bubble_color"), f"assistant_config[{cfg_name!r}].bubble_color"
+        )
+
+    for nc_name, nc_color in (name_colors or {}).items():
+        _validate_hex_color(nc_color, f"name_colors[{nc_name!r}]")
+
     # Merge assistant configs with defaults
     merged_assistant: dict[str, dict[str, str]] = {
         "_default": {**_DEFAULT_ASSISTANT},

@@ -58,6 +58,7 @@ The dashboard shows 2015 pizza sales data. You have two tools available:
 Guidelines:
 - Always call get_dashboard_context before providing insights or numbers.
 - When applying filters, confirm what you changed and briefly summarise the new KPIs.
+- When asked for reset, clear all filters and reset to the default view (months from Jan to Dec and no categories or sizes selected).
 - Be concise, data-driven, and proactive in surfacing interesting patterns.
 - Numbers: format currency with $ and thousands separator.
 """  # noqa: E501
@@ -296,12 +297,14 @@ def get_executor() -> ThreadPoolExecutor:
 
 
 def init_session_state() -> None:
-    if "thread_id" not in st.session_state:
-        st.session_state.thread_id = str(uuid.uuid4())[:8]
-    if "messages" not in st.session_state:
-        tid = st.session_state.thread_id
-        st.session_state.messages = [
-            {"role": "system", "content": f"Session started · ID: {tid}"},
+    st.session_state.setdefault("thread_id", str(uuid.uuid4())[:8])
+    st.session_state.setdefault(
+        "messages",
+        [
+            {
+                "role": "system",
+                "content": f"Session started · ID: {st.session_state.thread_id}",
+            },
             {"role": "system", "content": "Pizza Sales AI Assistant joined the chat"},
             {
                 "role": "assistant",
@@ -311,19 +314,14 @@ def init_session_state() -> None:
                     "like to know?"
                 ),
             },
-        ]
-    if "filter_months" not in st.session_state:
-        st.session_state.filter_months = (1, 12)
-    if "filter_categories" not in st.session_state:
-        st.session_state.filter_categories = []
-    if "filter_sizes" not in st.session_state:
-        st.session_state.filter_sizes = []
-    if "unread" not in st.session_state:
-        st.session_state.unread = 1
-    if "processing" not in st.session_state:
-        st.session_state.processing = False
-    if "agent_future" not in st.session_state:
-        st.session_state.agent_future = None
+        ],
+    )
+    st.session_state.setdefault("filter_months", (1, 12))
+    st.session_state.setdefault("filter_categories", [])
+    st.session_state.setdefault("filter_sizes", [])
+    st.session_state.setdefault("unread", 1)
+    st.session_state.setdefault("processing", False)
+    st.session_state.setdefault("agent_future", None)
 
 
 # ---------------------------------------------------------------------------
@@ -333,10 +331,18 @@ def init_session_state() -> None:
 
 def render_kpi_cards(kpis: dict) -> None:
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("💰 Total Revenue", f"${kpis['total_revenue']:,.0f}")
-    col2.metric("🛒 Total Orders", f"{kpis['total_orders']:,}")
-    col3.metric("🍕 Pizzas Sold", f"{kpis['total_pizzas']:,}")
-    col4.metric("📊 Avg Order Value", f"${kpis['aov']:,.2f}")
+    with col1:
+        with st.container(border=True):
+            st.metric("Total revenue", f"${kpis['total_revenue']:,.0f}")
+    with col2:
+        with st.container(border=True):
+            st.metric("Total orders", f"{kpis['total_orders']:,}")
+    with col3:
+        with st.container(border=True):
+            st.metric("Pizzas sold", f"{kpis['total_pizzas']:,}")
+    with col4:
+        with st.container(border=True):
+            st.metric("Avg order value", f"${kpis['aov']:,.2f}")
 
 
 def render_charts(df: pd.DataFrame) -> None:
@@ -457,7 +463,7 @@ def handle_message() -> None:
     st.session_state.agent_future = get_executor().submit(_run_agent)
 
 
-@st.fragment(run_every=0.4)
+@st.fragment(run_every=0.4 if st.session_state.get("processing") else None)
 def _await_agent_response() -> None:
     """Polls for the pending LLM response at 0.4-second intervals.
 
@@ -510,124 +516,123 @@ def _await_agent_response() -> None:
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:
-    st.set_page_config(
-        page_title="Pizza Sales Dashboard",
-        page_icon="🍕",
-        layout="wide",
-    )
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
 
-    init_session_state()
+st.set_page_config(
+    page_title="Pizza Sales Dashboard",
+    page_icon=":material/local_pizza:",
+    layout="wide",
+)
 
-    # Apply filter reset from the previous run — must run before any widget
-    # with those keys is instantiated, so we use a flag + rerun pattern.
-    if st.session_state.pop("_reset_filters_requested", False):
-        st.session_state.filter_months = (1, 12)
-        st.session_state.filter_categories = []
-        st.session_state.filter_sizes = []
-        # Set all widget keys to reset values before they are instantiated.
-        # Using the flag + rerun pattern avoids StreamlitAPIException (widgets
-        # cannot be modified after instantiation in the same run).
-        st.session_state["_month_slider"] = (1, 12)
-        st.session_state["_category_multi"] = []
-        st.session_state["_size_multi"] = []
+init_session_state()
 
-    processing = st.session_state.processing
-    master_df = load_data()
+# Apply filter reset from the previous run — must run before any widget
+# with those keys is instantiated, so we use a flag + rerun pattern.
+if st.session_state.pop("_reset_filters_requested", False):
+    st.session_state.filter_months = (1, 12)
+    st.session_state.filter_categories = []
+    st.session_state.filter_sizes = []
+    st.session_state["_month_slider"] = (1, 12)
+    st.session_state["_category_multi"] = []
+    st.session_state["_size_multi"] = []
 
-    # ── Sidebar ────────────────────────────────────────────────────────────
-    with st.sidebar:
-        st.title("🍕 Pizza Sales")
-        st.caption("2015 Sales Analytics")
-        st.divider()
+processing = st.session_state.processing
+master_df = load_data()
 
+# ── Sidebar ────────────────────────────────────────────────────────────
+
+with st.sidebar:
+    st.title("Pizza sales")
+    st.caption("2015 Sales Analytics")
+
+    with st.form("filters", border=False):
         st.subheader("Filters")
 
-        # Month range
         month_range = st.select_slider(
-            "Month Range",
+            "Month range",
             options=list(range(1, 13)),
             value=st.session_state.filter_months,
             format_func=lambda m: MONTH_NAMES[m - 1],
             key="_month_slider",
             disabled=processing,
         )
-        st.session_state.filter_months = month_range
 
-        # Category
         selected_categories = st.multiselect(
             "Category",
             options=ALL_CATEGORIES,
             key="_category_multi",
             disabled=processing,
         )
-        st.session_state.filter_categories = selected_categories
 
-        # Size
         selected_sizes = st.multiselect(
             "Size",
             options=ALL_SIZES,
             key="_size_multi",
             disabled=processing,
         )
+
+        col_apply, col_reset = st.columns(2)
+        with col_apply:
+            applied = st.form_submit_button(
+                "Apply filters", use_container_width=True, disabled=processing
+            )
+        with col_reset:
+            if st.form_submit_button(
+                "Reset filters", use_container_width=True, disabled=processing
+            ):
+                st.session_state["_reset_filters_requested"] = True
+                st.rerun()
+
+    if applied:
+        st.session_state.filter_months = month_range
+        st.session_state.filter_categories = selected_categories
         st.session_state.filter_sizes = selected_sizes
 
-        if st.button("Reset Filters", use_container_width=True, disabled=processing):
-            st.session_state["_reset_filters_requested"] = True
-            st.rerun()
+    st.caption("The AI assistant can also apply filters — just ask!")
 
-        st.divider()
-        st.caption("The AI assistant can also apply filters — just ask!")
+# ── Apply filters & compute KPIs ───────────────────────────────────────
+filtered_df = apply_dataframe_filters(master_df)
+kpis = compute_kpis(filtered_df)
 
-    # ── Apply filters & compute KPIs ───────────────────────────────────────
-    filtered_df = apply_dataframe_filters(master_df)
-    kpis = compute_kpis(filtered_df)
+# ── Header ─────────────────────────────────────────────────────────────
+st.title("Pizza sales dashboard")
 
-    # ── Header ─────────────────────────────────────────────────────────────
-    st.title("🍕 Pizza Sales Dashboard")
+start_m, end_m = st.session_state.filter_months
+active_filters = []
+if (start_m, end_m) != (1, 12):
+    active_filters.append(f"{MONTH_NAMES[start_m - 1]}–{MONTH_NAMES[end_m - 1]}")
+if st.session_state.filter_categories:
+    active_filters.append(", ".join(st.session_state.filter_categories))
+if st.session_state.filter_sizes:
+    active_filters.append("Size: " + ", ".join(st.session_state.filter_sizes))
 
-    start_m, end_m = st.session_state.filter_months
-    active_filters = []
-    if (start_m, end_m) != (1, 12):
-        active_filters.append(f"{MONTH_NAMES[start_m - 1]}–{MONTH_NAMES[end_m - 1]}")
-    if st.session_state.filter_categories:
-        active_filters.append(", ".join(st.session_state.filter_categories))
-    if st.session_state.filter_sizes:
-        active_filters.append("Size: " + ", ".join(st.session_state.filter_sizes))
+if active_filters:
+    st.caption(f"Filtered by: {' | '.join(active_filters)}")
+else:
+    st.caption("Showing all data — Jan to Dec 2015")
 
-    if active_filters:
-        st.caption(f"Filtered by: {' | '.join(active_filters)}")
-    else:
-        st.caption("Showing all data — Jan to Dec 2015")
+# ── KPI cards ──────────────────────────────────────────────────────────
+render_kpi_cards(kpis)
 
-    st.divider()
+# ── Charts ─────────────────────────────────────────────────────────────
+render_charts(filtered_df)
 
-    # ── KPI cards ──────────────────────────────────────────────────────────
-    render_kpi_cards(kpis)
+# ── Poll for async agent response (no-op when idle) ────────────────────
+_await_agent_response()
 
-    st.divider()
+# ── Bubble chat ────────────────────────────────────────────────────────
+bubble_chat(
+    messages=st.session_state.messages,
+    unread_count=st.session_state.unread,
+    key="pizza_chat",
+    window_title="Pizza Sales AI Assistant",
+    theme_color="#007AFF",
+    on_message=handle_message,
+)
 
-    # ── Charts ─────────────────────────────────────────────────────────────
-    render_charts(filtered_df)
-
-    # ── Poll for async agent response (no-op when idle) ────────────────────
-    _await_agent_response()
-
-    # ── Bubble chat ────────────────────────────────────────────────────────
-    bubble_chat(
-        messages=st.session_state.messages,
-        unread_count=st.session_state.unread,
-        key="pizza_chat",
-        window_title="Pizza Sales AI Assistant",
-        theme_color="#007AFF",
-        on_message=handle_message,
-    )
-
-    # Reset unread when user opens the chat.
-    chat_state = st.session_state.get("pizza_chat", {})
-    if chat_state.get("is_open", False) and st.session_state.unread > 0:
-        st.session_state.unread = 0
-
-
-if __name__ == "__main__":
-    main()
+# Reset unread when user opens the chat.
+chat_state = st.session_state.get("pizza_chat", {})
+if chat_state.get("is_open", False) and st.session_state.unread > 0:
+    st.session_state.unread = 0

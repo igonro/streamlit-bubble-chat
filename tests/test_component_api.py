@@ -98,3 +98,167 @@ def test_bubble_chat_wires_callbacks_and_defaults(component_module, monkeypatch)
     assert callable(captured["on_is_open_change"])
     assert callable(captured["on_is_maximized_change"])
     assert captured["on_new_message_change"] is on_message
+
+
+# ── Validation tests ──
+
+
+class TestValidation:
+    """Tests for input validation in bubble_chat()."""
+
+    def test_invalid_role_raises(self, component_module, monkeypatch):
+        monkeypatch.setattr(component_module, "_component", lambda **kw: {"ok": True})
+        monkeypatch.setattr(component_module.st, "session_state", {}, raising=False)
+
+        with pytest.raises(ValueError, match=r"messages\[0\]\['role'\] must be one of"):
+            component_module.bubble_chat(
+                messages=[{"role": "bot", "content": "hi"}],
+                key="chat",
+            )
+
+    def test_missing_content_raises(self, component_module, monkeypatch):
+        monkeypatch.setattr(component_module, "_component", lambda **kw: {"ok": True})
+        monkeypatch.setattr(component_module.st, "session_state", {}, raising=False)
+
+        with pytest.raises(
+            ValueError, match=r"messages\[0\] is missing required key 'content'"
+        ):
+            component_module.bubble_chat(
+                messages=[{"role": "user"}],
+                key="chat",
+            )
+
+    def test_missing_role_raises(self, component_module, monkeypatch):
+        monkeypatch.setattr(component_module, "_component", lambda **kw: {"ok": True})
+        monkeypatch.setattr(component_module.st, "session_state", {}, raising=False)
+
+        with pytest.raises(
+            ValueError, match=r"messages\[0\] is missing required key 'role'"
+        ):
+            component_module.bubble_chat(
+                messages=[{"content": "hello"}],
+                key="chat",
+            )
+
+    def test_invalid_theme_color_raises(self, component_module, monkeypatch):
+        monkeypatch.setattr(component_module, "_component", lambda **kw: {"ok": True})
+        monkeypatch.setattr(component_module.st, "session_state", {}, raising=False)
+
+        with pytest.raises(ValueError, match="theme_color must be a valid #RRGGBB"):
+            component_module.bubble_chat(
+                messages=[{"role": "user", "content": "hi"}],
+                theme_color="red",
+                key="chat",
+            )
+
+    def test_invalid_user_icon_bg_raises(self, component_module, monkeypatch):
+        monkeypatch.setattr(component_module, "_component", lambda **kw: {"ok": True})
+        monkeypatch.setattr(component_module.st, "session_state", {}, raising=False)
+
+        with pytest.raises(ValueError, match="user_icon_bg must be a valid #RRGGBB"):
+            component_module.bubble_chat(
+                messages=[{"role": "user", "content": "hi"}],
+                user_icon_bg="rgb(0,0,0)",
+                key="chat",
+            )
+
+    def test_invalid_assistant_config_color_raises(self, component_module, monkeypatch):
+        monkeypatch.setattr(component_module, "_component", lambda **kw: {"ok": True})
+        monkeypatch.setattr(component_module.st, "session_state", {}, raising=False)
+
+        with pytest.raises(ValueError, match=r"assistant_config\['Agent'\]\.avatar_bg"):
+            component_module.bubble_chat(
+                messages=[{"role": "assistant", "content": "hi"}],
+                assistant_config={"Agent": {"icon": "🤖", "avatar_bg": "bad"}},
+                key="chat",
+            )
+
+    def test_invalid_name_colors_raises(self, component_module, monkeypatch):
+        monkeypatch.setattr(component_module, "_component", lambda **kw: {"ok": True})
+        monkeypatch.setattr(component_module.st, "session_state", {}, raising=False)
+
+        with pytest.raises(ValueError, match=r"name_colors\['Bot'\]"):
+            component_module.bubble_chat(
+                messages=[{"role": "user", "content": "hi"}],
+                name_colors={"Bot": "not-a-color"},
+                key="chat",
+            )
+
+    def test_valid_hex_colors_pass(self, component_module, monkeypatch):
+        captured: dict[str, object] = {}
+
+        def fake_component(**kwargs):
+            captured.update(kwargs)
+            return {"ok": True}
+
+        monkeypatch.setattr(component_module, "_component", fake_component)
+        monkeypatch.setattr(component_module.st, "session_state", {}, raising=False)
+
+        result = component_module.bubble_chat(
+            messages=[{"role": "user", "content": "hi"}],
+            theme_color="#AABBCC",
+            user_icon_bg="#112233",
+            name_colors={"Bot": "#ff00ff"},
+            assistant_config={"_default": {"icon": "🤖", "avatar_bg": "#000000"}},
+            key="chat",
+        )
+        assert result == {"ok": True}
+
+    def test_empty_and_none_colors_pass(self, component_module, monkeypatch):
+        captured: dict[str, object] = {}
+
+        def fake_component(**kwargs):
+            captured.update(kwargs)
+            return {"ok": True}
+
+        monkeypatch.setattr(component_module, "_component", fake_component)
+        monkeypatch.setattr(component_module.st, "session_state", {}, raising=False)
+
+        result = component_module.bubble_chat(
+            messages=[{"role": "user", "content": "hi"}],
+            theme_color=None,
+            user_icon_bg=None,
+            assistant_config={"_default": {"icon": "🤖", "avatar_bg": ""}},
+            key="chat",
+        )
+        assert result == {"ok": True}
+
+    def test_key_none_skips_session_state(self, component_module, monkeypatch):
+        captured: dict[str, object] = {}
+
+        def fake_component(**kwargs):
+            captured.update(kwargs)
+            return {"ok": True}
+
+        monkeypatch.setattr(component_module, "_component", fake_component)
+        monkeypatch.setattr(
+            component_module.st,
+            "session_state",
+            {"chat": {"is_open": True}},
+            raising=False,
+        )
+
+        component_module.bubble_chat(
+            messages=[{"role": "user", "content": "hi"}],
+            key=None,
+        )
+
+        # Without a key, is_open/is_maximized should use defaults
+        assert captured["data"]["is_open"] is False
+        assert captured["data"]["is_maximized"] is False
+        assert captured["key"] is None
+
+    def test_second_invalid_message_reports_correct_index(
+        self, component_module, monkeypatch
+    ):
+        monkeypatch.setattr(component_module, "_component", lambda **kw: {"ok": True})
+        monkeypatch.setattr(component_module.st, "session_state", {}, raising=False)
+
+        with pytest.raises(ValueError, match=r"messages\[1\]\['role'\] must be one of"):
+            component_module.bubble_chat(
+                messages=[
+                    {"role": "user", "content": "hi"},
+                    {"role": "invalid", "content": "bad"},
+                ],
+                key="chat",
+            )
