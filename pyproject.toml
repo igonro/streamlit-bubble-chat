@@ -82,7 +82,10 @@ name = "cz_conventional_commits"
 tag_format = "v$version"
 version_provider = "uv"
 update_changelog_on_bump = true
-version_files = ["streamlit_bubble_chat/pyproject.toml:version"]
+version_files = [
+    "streamlit_bubble_chat/pyproject.toml:version",
+    "streamlit_bubble_chat/frontend/package.json:version",
+]
 
 [[tool.streamlit.component.components]]
 name = "bubble_chat"
