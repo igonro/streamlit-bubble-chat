@@ -98,6 +98,15 @@ Each message is a dictionary with `role`, `content`, and an optional `name`:
 Inside `on_message`, read the submitted text from `st.session_state[key].new_message`.
 The component also stores `is_open` and `is_maximized` in the same session-state entry.
 
+All color parameters (`theme_color`, `user_icon_bg`, values in `assistant_config` and
+`name_colors`) must be `#RRGGBB` hex strings — invalid values raise `ValueError`.
+
+## Documentation
+
+- [API Reference](https://github.com/igonro/streamlit-bubble-chat/blob/main/docs/api-reference.md) — full parameter docs, message schema, assistant config, limitations.
+- [Architecture](https://github.com/igonro/streamlit-bubble-chat/blob/main/docs/architecture.md) — design decisions, state sync, frontend modules.
+- [Customization](https://github.com/igonro/streamlit-bubble-chat/blob/main/docs/customization.md) — theming, avatars, colors, dark mode, CSS classes.
+
 ## What you get
 
 - Floating chat bubble anchored to the bottom-right corner.
@@ -120,6 +129,12 @@ If you need fresh frontend assets first:
 ```bash
 make build-frontend
 ```
+
+## Limitations
+
+- **Single instance per page** — only one `bubble_chat()` per Streamlit page. Multiple calls share the same DOM.
+- **Text only** — message content is plain text. No markdown, HTML, or media rendering.
+- **Material Icons need internet** — `:material/…:` icons load from Google Fonts CDN. Emoji icons work offline.
 
 ## Development
 

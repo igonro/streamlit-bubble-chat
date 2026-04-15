@@ -26,14 +26,14 @@ The changelog is maintained with Commitizen and Conventional Commits.
 - raise stbc-root z-index above Streamlit sidebar
 - **examples**: non-blocking chat, disable filters while waiting
 
-## v0.1.1 - 2026-04-12
+## v0.1.1 (2026-04-12)
 
 ### Fixed
 
 - Lazy component registration to support installed-package manifests.
 - Bumped minimum Streamlit dependency to 1.53 (`isolate_styles` support).
 
-## v0.1.0 - 2026-04-10
+## v0.1.0 (2026-04-10)
 
 ### Added
 
