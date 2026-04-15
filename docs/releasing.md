@@ -66,7 +66,7 @@ commit, and creates a tag like `v0.2.0`.
 ### Push the release
 
 ```bash
-git push --follow-tags
+git push --tags
 ```
 
 Pushing the tag triggers `.github/workflows/release.yml`, which publishes the

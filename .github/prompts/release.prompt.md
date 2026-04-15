@@ -66,7 +66,7 @@ Show the resulting tag name and the CHANGELOG entry added.
 ### 7. Remind to push
 Show the user:
 ```bash
-git push --follow-tags
+git push --tags
 ```
 Pushing the tag triggers `.github/workflows/release.yml`, which publishes to PyPI and creates a GitHub Release. **Do not push automatically.**
 
