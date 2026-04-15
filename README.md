@@ -16,11 +16,11 @@
 <p align="center">
   <a href="https://github.com/igonro/streamlit-bubble-chat">Source</a>
   ·
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="https://github.com/igonro/streamlit-bubble-chat/blob/main/CONTRIBUTING.md">Contributing</a>
 </p>
 
 <p align="center">
-  <img src="docs/images/demo.gif" alt="Bubble chat demo" width="800" />
+  <img src="https://raw.githubusercontent.com/igonro/streamlit-bubble-chat/main/docs/images/demo.gif" alt="Bubble chat demo" width="800" />
 </p>
 
 `streamlit-bubble-chat` is a drop-in component for adding a floating chat window
@@ -135,7 +135,7 @@ make build
 
 ## Contributing
 
-Contribution guidelines live in [CONTRIBUTING.md](CONTRIBUTING.md).
+Contribution guidelines live in [CONTRIBUTING.md](https://github.com/igonro/streamlit-bubble-chat/blob/main/CONTRIBUTING.md).
 
 ## Disclaimer
 
@@ -144,4 +144,4 @@ inconsistencies, or things that don't make sense, please open an issue.
 
 ## License
 
-Released under the [MIT License](LICENSE).
+Released under the [MIT License](https://github.com/igonro/streamlit-bubble-chat/blob/main/LICENSE).
